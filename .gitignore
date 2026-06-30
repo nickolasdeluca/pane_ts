@@ -1,0 +1,13 @@
+node_modules
+.pnpm-store
+.bun
+dist
+dist-electron
+release
+.vite
+test-artifacts
+*.tsbuildinfo
+src/**/*.js
+src/**/*.d.ts
+!src/vite-env.d.ts
+*.log
