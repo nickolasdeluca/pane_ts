@@ -1,6 +1,6 @@
 # Pane Windows
 
-This is a Windows-focused Electron port scaffold for [ibuhs/Pane](https://github.com/ibuhs/Pane), replacing the SwiftUI and SceneKit surface with a React, TypeScript, canvas, and Three.js implementation.
+This is a Web port scaffold for [ibuhs/Pane](https://github.com/ibuhs/Pane), replacing the SwiftUI and SceneKit surface with a React, TypeScript, canvas, and Three.js implementation.
 
 ## Current Slice
 
