@@ -42,6 +42,7 @@ import {
   type Rect,
   type ScreenshotPlatform
 } from "./state.ts";
+import { KofiWidget } from "./KofiWidget.tsx";
 
 interface LoadedAssets {
   screenshot: HTMLImageElement | null;
@@ -145,14 +146,10 @@ export default function App() {
       const dataUrl = canvas.toDataURL("image/png");
       const filename = `Pane-${editor.preset.id}-${editor.preset.width}x${editor.preset.height}.png`;
 
-      if (window.pane?.savePng) {
-        await window.pane.savePng(filename, dataUrl);
-      } else {
-        const anchor = document.createElement("a");
-        anchor.href = dataUrl;
-        anchor.download = filename;
-        anchor.click();
-      }
+      const anchor = document.createElement("a");
+      anchor.href = dataUrl;
+      anchor.download = filename;
+      anchor.click();
     } finally {
       setIsExporting(false);
     }
@@ -231,6 +228,7 @@ export default function App() {
           <span>Rendering...</span>
         </div>
       )}
+      <KofiWidget />
     </main>
   );
 }
