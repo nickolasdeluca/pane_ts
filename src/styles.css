@@ -84,6 +84,23 @@ button:disabled {
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.42);
 }
 
+.artboard.callout-mode {
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.artboard.callout-mode.hovering-callout {
+  cursor: grab;
+}
+
+.artboard.callout-mode.dragging-callout {
+  cursor: grabbing;
+}
+
+.artboard.callout-mode .three-stage {
+  pointer-events: none;
+}
+
 .canvas-layer,
 .three-stage {
   position: absolute;

@@ -276,7 +276,15 @@ function CanvasPreview({
   const foregroundCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [scale, setScale] = useState(0.35);
   const [dragRect, setDragRect] = useState<Rect | null>(null);
+  const [hoveredCalloutID, setHoveredCalloutID] = useState<string | null>(null);
+  const [draggingCalloutID, setDraggingCalloutID] = useState<string | null>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const calloutDragRef = useRef<{
+    id: string;
+    pointerId: number;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
   const size = presetSize(editor);
   const stage = useMemo(() => modelStageFrame(size, editor), [editor, size.width, size.height]);
 
@@ -332,31 +340,91 @@ function CanvasPreview({
     if (editor.toolMode !== "callouts" || !assets.screenshot) {
       return;
     }
-    event.currentTarget.setPointerCapture(event.pointerId);
     const point = pointFromEvent(event);
+    const hitCallout = findCalloutAtPoint(editor.callouts, point, size);
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    if (hitCallout) {
+      calloutDragRef.current = {
+        id: hitCallout.id,
+        pointerId: event.pointerId,
+        offsetX: point.x - hitCallout.bubbleCenter.x * size.width,
+        offsetY: point.y - hitCallout.bubbleCenter.y * size.height
+      };
+      setDraggingCalloutID(hitCallout.id);
+      setHoveredCalloutID(hitCallout.id);
+      return;
+    }
+
     dragStartRef.current = point;
     setDragRect({ x: point.x, y: point.y, width: 0, height: 0 });
   }
 
   function onPointerMove(event: PointerEvent<HTMLDivElement>) {
-    const start = dragStartRef.current;
-    if (!start) {
+    const point = pointFromEvent(event);
+    const calloutDrag = calloutDragRef.current;
+    if (calloutDrag && calloutDrag.pointerId === event.pointerId) {
+      setEditor((state) => ({
+        ...state,
+        callouts: state.callouts.map((callout) => {
+          if (callout.id !== calloutDrag.id) {
+            return callout;
+          }
+
+          const bubble = bubbleRect(callout, size);
+          return {
+            ...callout,
+            bubbleCenter: {
+              x: clampBubbleCenter(
+                point.x - calloutDrag.offsetX,
+                bubble.width,
+                size.width
+              ),
+              y: clampBubbleCenter(
+                point.y - calloutDrag.offsetY,
+                bubble.height,
+                size.height
+              )
+            }
+          };
+        })
+      }));
       return;
     }
-    const point = pointFromEvent(event);
-    setDragRect({
-      x: Math.min(start.x, point.x),
-      y: Math.min(start.y, point.y),
-      width: Math.abs(point.x - start.x),
-      height: Math.abs(point.y - start.y)
-    });
+
+    const start = dragStartRef.current;
+    if (start) {
+      setDragRect({
+        x: Math.min(start.x, point.x),
+        y: Math.min(start.y, point.y),
+        width: Math.abs(point.x - start.x),
+        height: Math.abs(point.y - start.y)
+      });
+      return;
+    }
+
+    const hitCallout = findCalloutAtPoint(editor.callouts, point, size);
+    setHoveredCalloutID(hitCallout?.id ?? null);
   }
 
   function onPointerUp(event: PointerEvent<HTMLDivElement>) {
+    const calloutDrag = calloutDragRef.current;
+    if (calloutDrag && calloutDrag.pointerId === event.pointerId) {
+      calloutDragRef.current = null;
+      setDraggingCalloutID(null);
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      return;
+    }
+
     const start = dragStartRef.current;
     const rect = dragRect;
     dragStartRef.current = null;
     setDragRect(null);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
     if (!start || !rect || rect.width < 8 || rect.height < 8) {
       return;
     }
@@ -383,7 +451,16 @@ function CanvasPreview({
       }
     };
     setEditor((state) => ({ ...state, callouts: [...state.callouts, callout] }));
-    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+
+  function onPointerCancel(event: PointerEvent<HTMLDivElement>) {
+    calloutDragRef.current = null;
+    dragStartRef.current = null;
+    setDraggingCalloutID(null);
+    setDragRect(null);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   }
 
   return (
@@ -400,7 +477,9 @@ function CanvasPreview({
       }}
     >
       <div
-        className="artboard"
+        className={`artboard${editor.toolMode === "callouts" ? " callout-mode" : ""}${
+          draggingCalloutID ? " dragging-callout" : hoveredCalloutID ? " hovering-callout" : ""
+        }`}
         style={{
           width: size.width,
           height: size.height,
@@ -414,6 +493,12 @@ function CanvasPreview({
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onPointerLeave={() => {
+          if (!calloutDragRef.current) {
+            setHoveredCalloutID(null);
+          }
+        }}
       >
         <canvas ref={backgroundCanvasRef} className="canvas-layer" />
         {editor.modelEnabled && editor.modelUrl && (
@@ -1153,6 +1238,41 @@ function updateCallout(
       callout.id === id ? { ...callout, ...patch } : callout
     )
   }));
+}
+
+function findCalloutAtPoint(
+  callouts: Callout[],
+  point: { x: number; y: number },
+  size: { width: number; height: number }
+) {
+  for (let index = callouts.length - 1; index >= 0; index -= 1) {
+    const callout = callouts[index];
+    const bubble = bubbleRect(callout, size);
+    const nx = (point.x - (bubble.x + bubble.width / 2)) / (bubble.width / 2);
+    const ny = (point.y - (bubble.y + bubble.height / 2)) / (bubble.height / 2);
+
+    if (callout.shape === "circle") {
+      if (nx * nx + ny * ny <= 1) {
+        return callout;
+      }
+    } else if (
+      point.x >= bubble.x &&
+      point.x <= bubble.x + bubble.width &&
+      point.y >= bubble.y &&
+      point.y <= bubble.y + bubble.height
+    ) {
+      return callout;
+    }
+  }
+
+  return null;
+}
+
+function clampBubbleCenter(position: number, extent: number, total: number) {
+  if (extent >= total) {
+    return 0.5;
+  }
+  return clamp(position, extent / 2, total - extent / 2) / total;
 }
 
 function presetSummary(preset: DevicePreset) {
