@@ -364,17 +364,17 @@ function CanvasPreview({
     const point = pointFromEvent(event);
     const calloutDrag = calloutDragRef.current;
     if (calloutDrag && calloutDrag.pointerId === event.pointerId) {
-      setEditor((state) => ({
-        ...state,
-        callouts: state.callouts.map((callout) => {
-          if (callout.id !== calloutDrag.id) {
-            return callout;
-          }
+      setEditor((state) => {
+        const shotFrame = screenshotFrame(size, state);
+        return {
+          ...state,
+          callouts: state.callouts.map((callout) => {
+            if (callout.id !== calloutDrag.id) {
+              return callout;
+            }
 
-          const bubble = bubbleRect(callout, size);
-          return {
-            ...callout,
-            bubbleCenter: {
+            const bubble = bubbleRect(callout, size);
+            const bubbleCenter = {
               x: clampBubbleCenter(
                 point.x - calloutDrag.offsetX,
                 bubble.width,
@@ -385,10 +385,20 @@ function CanvasPreview({
                 bubble.height,
                 size.height
               )
-            }
-          };
-        })
-      }));
+            };
+            return {
+              ...callout,
+              bubbleCenter,
+              sourceRect: sourceRectUnderBubble(
+                callout.sourceRect,
+                bubbleCenter,
+                shotFrame,
+                size
+              )
+            };
+          })
+        };
+      });
       return;
     }
 
@@ -1273,6 +1283,34 @@ function clampBubbleCenter(position: number, extent: number, total: number) {
     return 0.5;
   }
   return clamp(position, extent / 2, total - extent / 2) / total;
+}
+
+function sourceRectUnderBubble(
+  sourceRect: Rect,
+  bubbleCenter: { x: number; y: number },
+  shotFrame: Rect,
+  size: { width: number; height: number }
+): Rect {
+  if (!shotFrame.width || !shotFrame.height) {
+    return sourceRect;
+  }
+
+  const centerX = clamp(
+    (bubbleCenter.x * size.width - shotFrame.x) / shotFrame.width,
+    sourceRect.width / 2,
+    1 - sourceRect.width / 2
+  );
+  const centerY = clamp(
+    (bubbleCenter.y * size.height - shotFrame.y) / shotFrame.height,
+    sourceRect.height / 2,
+    1 - sourceRect.height / 2
+  );
+
+  return {
+    ...sourceRect,
+    x: centerX - sourceRect.width / 2,
+    y: centerY - sourceRect.height / 2
+  };
 }
 
 function presetSummary(preset: DevicePreset) {
