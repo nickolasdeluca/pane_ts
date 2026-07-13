@@ -18,11 +18,12 @@ interface ModelNormalization {
 
 interface ScreenSurface {
   center: THREE.Vector3;
+  width?: number;
   height: number;
 }
 
 const defaultModelScreenControlValue = 0.826;
-const screenSurfaceInsetScale = 0.986;
+const screenSurfaceOverlapScale = 1.002;
 const screenSurfaceDepthOffset = 0.026;
 const overlayLayerDepthOffset = 0.004;
 const fallbackScreenSurface: ScreenSurface = {
@@ -159,6 +160,7 @@ export function ThreeDevice({
         const modelRoot = new THREE.Group();
         const normalizer = new THREE.Group();
         const sourceScreenSurface = findScreenSurface(gltf.scene);
+        darkenScreenSurface(gltf.scene);
         normalizer.add(gltf.scene);
         const normalization = normalizeModel(normalizer);
         screenSurfaceRef.current = sourceScreenSurface
@@ -293,8 +295,26 @@ function findScreenSurface(root: THREE.Object3D): ScreenSurface | null {
 
   return {
     center: screenBox.getCenter(new THREE.Vector3()),
+    width: size.x,
     height: size.y
   };
+}
+
+function darkenScreenSurface(root: THREE.Object3D) {
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.material || !isScreenSurfaceMaterial(mesh.material)) {
+      return;
+    }
+
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const material of materials) {
+      const screenMaterial = material as THREE.MeshStandardMaterial;
+      screenMaterial.color?.set(0x000000);
+      screenMaterial.emissive?.set(0x000000);
+      screenMaterial.needsUpdate = true;
+    }
+  });
 }
 
 function isScreenSurfaceMaterial(material: THREE.Material | THREE.Material[]) {
@@ -311,6 +331,7 @@ function normalizeScreenSurface(
 ): ScreenSurface {
   return {
     center: surface.center.clone().sub(normalization.center),
+    width: surface.width,
     height: surface.height
   };
 }
@@ -338,8 +359,12 @@ function syncScreenPlane(
 
   const aspect = editor.preset.width / editor.preset.height;
   const screenScale = Math.max(0.05, editor.modelScreenWidth / defaultModelScreenControlValue);
-  const planeHeight = screenSurface.height * screenScale * screenSurfaceInsetScale;
-  const planeWidth = planeHeight * aspect;
+  const planeHeight = screenSurface.height * screenScale * screenSurfaceOverlapScale;
+  const planeWidth =
+    (screenSurface.width ?? screenSurface.height * aspect) *
+    screenScale *
+    screenSurfaceOverlapScale;
+  const planeAspect = planeWidth / planeHeight;
 
   if (!screenMeshRef.current) {
     const mesh = new THREE.Mesh();
@@ -359,8 +384,8 @@ function syncScreenPlane(
   );
   disposeMaterial(screenMesh.material);
   const screenTexture = screenshotImage
-    ? makeRoundedTexture(screenshotImage, editor.modelScreenCornerRadius)
-    : makePlaceholderTexture(editor);
+    ? makeRoundedTexture(screenshotImage, editor.modelScreenCornerRadius, planeAspect)
+    : makePlaceholderTexture(editor, planeAspect);
   screenMesh.material = new THREE.MeshBasicMaterial({
     color: 0xffffff,
     map: screenTexture,
@@ -425,17 +450,21 @@ function syncDynamicIsland(
   );
 }
 
-function makeRoundedTexture(image: HTMLImageElement, cornerRadiusFactor: number) {
+function makeRoundedTexture(
+  image: HTMLImageElement,
+  cornerRadiusFactor: number,
+  targetAspect: number
+) {
   const canvas = document.createElement("canvas");
   canvas.width = image.naturalWidth || image.width;
-  canvas.height = image.naturalHeight || image.height;
+  canvas.height = Math.max(1, Math.round(canvas.width / targetAspect));
   const ctx = canvas.getContext("2d");
 
   if (ctx) {
     const radius = canvas.width * cornerRadiusFactor;
     roundedRect(ctx, 0, 0, canvas.width, canvas.height, radius);
     ctx.clip();
-    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    drawImageCover(ctx, image, canvas.width, canvas.height);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -445,10 +474,10 @@ function makeRoundedTexture(image: HTMLImageElement, cornerRadiusFactor: number)
   return texture;
 }
 
-function makePlaceholderTexture(editor: EditorState) {
+function makePlaceholderTexture(editor: EditorState, targetAspect: number) {
   const canvas = document.createElement("canvas");
   canvas.width = editor.preset.width;
-  canvas.height = editor.preset.height;
+  canvas.height = Math.max(1, Math.round(canvas.width / targetAspect));
   const ctx = canvas.getContext("2d");
 
   if (ctx) {
@@ -473,6 +502,30 @@ function makePlaceholderTexture(editor: EditorState) {
   texture.anisotropy = 8;
   texture.needsUpdate = true;
   return texture;
+}
+
+function drawImageCover(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  width: number,
+  height: number
+) {
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  const scale = Math.max(width / sourceWidth, height / sourceHeight);
+  const sourceCropWidth = width / scale;
+  const sourceCropHeight = height / scale;
+  ctx.drawImage(
+    image,
+    (sourceWidth - sourceCropWidth) / 2,
+    (sourceHeight - sourceCropHeight) / 2,
+    sourceCropWidth,
+    sourceCropHeight,
+    0,
+    0,
+    width,
+    height
+  );
 }
 
 function applyFrameColor(root: THREE.Object3D, preset: FrameColorPreset | null) {
