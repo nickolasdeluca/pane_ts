@@ -346,7 +346,11 @@ function drawDevice(
 
   if (editor.preset.kind === "mac") {
     drawMacChrome(ctx, scaledFrame, radius);
-  } else if (editor.preset.kind === "iphone" && editor.preset.cornerRadius > 100) {
+  } else if (
+    editor.preset.kind === "iphone" &&
+    editor.preset.cornerRadius > 100 &&
+    editor.showSimulatedNotch
+  ) {
     const islandWidth = scaledFrame.width * 0.3;
     const islandHeight = scaledFrame.width * 0.082;
     roundedRect(

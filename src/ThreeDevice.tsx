@@ -215,7 +215,7 @@ export function ThreeDevice({
     editor.modelScreenOffsetY,
     editor.modelScreenCornerRadius,
     editor.modelFrameColorID,
-    editor.modelDynamicIslandEnabled,
+    editor.showSimulatedNotch,
     editor.modelDynamicIslandWidth,
     editor.modelDynamicIslandHeight,
     editor.modelDynamicIslandOffsetX,
@@ -385,7 +385,7 @@ function syncDynamicIsland(
   planeWidth: number,
   planeHeight: number
 ) {
-  const enabled = editor.screenshotPlatform === "iphone" && editor.modelDynamicIslandEnabled;
+  const enabled = editor.screenshotPlatform === "iphone" && editor.showSimulatedNotch;
 
   if (!enabled) {
     islandMeshRef.current?.removeFromParent();

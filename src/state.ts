@@ -75,6 +75,7 @@ export interface EditorState {
   screenshotPlatform: ScreenshotPlatform;
   preset: DevicePreset;
   showDeviceFrame: boolean;
+  showSimulatedNotch: boolean;
   caption: string;
   captionSize: number;
   captionPosition: CaptionPosition;
@@ -100,7 +101,6 @@ export interface EditorState {
   modelScreenOffsetY: number;
   modelScreenCornerRadius: number;
   modelFrameColorID: string;
-  modelDynamicIslandEnabled: boolean;
   modelDynamicIslandWidth: number;
   modelDynamicIslandHeight: number;
   modelDynamicIslandOffsetX: number;
@@ -116,6 +116,14 @@ export const paddingDefaults: Record<PaddingMode, number> = {
 };
 
 export const devicePresets = {
+  iPhone69: {
+    id: "iphone69",
+    label: "iPhone 6.9 in - 1320 x 2868",
+    width: 1320,
+    height: 2868,
+    cornerRadius: 225,
+    kind: "iphone"
+  },
   iPhone67: {
     id: "iphone67",
     label: "iPhone 6.7 in - 1290 x 2796",
@@ -315,8 +323,9 @@ export const defaultState: EditorState = {
   gradientAngle: 135,
   captionFont: "Fraunces",
   screenshotPlatform: "iphone",
-  preset: devicePresets.iPhone67,
+  preset: devicePresets.iPhone69,
   showDeviceFrame: true,
+  showSimulatedNotch: false,
   caption: "Add text *here*",
   captionSize: 0.085,
   captionPosition: "top",
@@ -342,7 +351,6 @@ export const defaultState: EditorState = {
   modelScreenOffsetY: 0,
   modelScreenCornerRadius: 0.1,
   modelFrameColorID: frameColorPresets[0].id,
-  modelDynamicIslandEnabled: true,
   modelDynamicIslandWidth: 0.3,
   modelDynamicIslandHeight: 0.085,
   modelDynamicIslandOffsetX: 0,
@@ -379,7 +387,6 @@ export function applyAppscreen3DDefaults(state: EditorState): EditorState {
     modelScreenOffsetY: 0,
     modelScreenCornerRadius: 0.16,
     modelFrameColorID: frameColorPresets[0].id,
-    modelDynamicIslandEnabled: true,
     modelDynamicIslandWidth: 0.3,
     modelDynamicIslandHeight: 0.085,
     modelDynamicIslandOffsetX: 0,
@@ -407,7 +414,6 @@ export function applyCustomModelDefaults(
     modelScreenOffsetX: 0,
     modelScreenOffsetY: 0,
     modelScreenCornerRadius: mac ? 0.035 : 0.1,
-    modelDynamicIslandEnabled: !mac,
     modelDynamicIslandWidth: 0.3,
     modelDynamicIslandHeight: 0.085,
     modelDynamicIslandOffsetX: 0,

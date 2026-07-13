@@ -559,8 +559,7 @@ function ControlPanel({
       screenshotPlatform: platform,
       preset: presetSupportsPlatform(state.preset, platform)
         ? state.preset
-        : presetsForPlatform(platform)[0],
-      modelDynamicIslandEnabled: platform === "iphone" && state.modelDynamicIslandEnabled
+        : presetsForPlatform(platform)[0]
     }));
   }
 
@@ -796,6 +795,13 @@ function ControlPanel({
           checked={editor.showDeviceFrame}
           onChange={(showDeviceFrame) => setEditor({ showDeviceFrame })}
         />
+        {editor.screenshotPlatform === "iphone" && (
+          <Toggle
+            label="Simulated notch"
+            checked={editor.showSimulatedNotch}
+            onChange={(showSimulatedNotch) => setEditor({ showSimulatedNotch })}
+          />
+        )}
       </Panel>
 
       <Panel title="Screenshot" icon={<ImageIcon size={16} />}>
@@ -972,14 +978,7 @@ function ControlPanel({
 
             {editor.screenshotPlatform === "iphone" && (
               <>
-                <Toggle
-                  label="Dynamic Island"
-                  checked={editor.modelDynamicIslandEnabled}
-                  onChange={(modelDynamicIslandEnabled) =>
-                    setEditor({ modelDynamicIslandEnabled })
-                  }
-                />
-                {editor.modelDynamicIslandEnabled && (
+                {editor.showSimulatedNotch && (
                   <>
                     <Slider
                       label="Island width"

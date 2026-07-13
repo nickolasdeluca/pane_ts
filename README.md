@@ -6,6 +6,8 @@ This is a web port of [ibuhs/Pane](https://github.com/ibuhs/Pane), replacing the
 
 - Vite + React + TypeScript web application.
 - Canvas compositor for App Store screenshot presets, backgrounds, captions, subtitles, 2D frames, and zoom callouts.
+- iPhone screenshot presets through the 6.9-inch iPhone (1320 x 2868).
+- Optional simulated notch/Dynamic Island rendering for both 2D and 3D device compositions.
 - Three.js `GLTFLoader` rendering for GLB device mockups.
 - Bundled iPhone 15 Pro Max GLB copied from upstream Pane.
 - Screenshot, background, and GLB import through file inputs, drag/drop, and paste for screenshots.
